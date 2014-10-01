@@ -93,6 +93,7 @@ for index, image_path in enumerate(glob.iglob(input_image_glob)):
 
 all_ids = found_ids.keys()
 
+print all_ids
 sys.stderr.write('Found %d total labels\n' % (len(all_ids)))
 
 shuffle(all_ids)

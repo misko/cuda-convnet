@@ -162,8 +162,8 @@ class OptionsParser:
         this instances's SET options with op2's default values."""
         for name, o in self.options.iteritems():
             if name in op2.options and (op2.options[name].value_given or not op2.options[name].save):
-                if op2.options[name].set_once:
-                    raise OptionException("Option %s (%s) cannot be changed" % (op2.options[name].prefixed_letter, op2.options[name].desc))
+                #if op2.options[name].set_once:
+                #    raise OptionException("Option %s (%s) cannot be changed" % (op2.options[name].prefixed_letter, op2.options[name].desc))
                 self.options[name] = op2.options[name]
         for name in op2.options:
             if name not in self.options:

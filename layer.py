@@ -157,6 +157,7 @@ class LayerParser:
        dic['dropout'] = 0.0
        if name in mcp.sections():
            dic['dropout'] = mcp.safe_get_float(name, 'dropout', default=0.0)
+	   print "DROPOUT IS ",dic['dropout']
 
     def init(self, dic):
         self.dic = dic
@@ -806,16 +807,28 @@ class FCLayerParser(WeightLayerParser):
         self.verify_num_range(dic['outputs'], 'outputs', 1, None)
         self.make_weights(dic['initW'], dic['numInputs'], [dic['outputs']] * len(dic['numInputs']), order='F')
         self.make_biases(1, dic['outputs'], order='F')
+	
+	prev_layer=prev_layers[-1]
+	if prev_layer['type']=='pool':
+		print "INPUT IS",prev_layer['outputsX'],prev_layer['outputsX'],prev_layer['channels']	
+		dic['binary_input']=(prev_layer['outputsX'],prev_layer['outputsX'],prev_layer['channels'])
+	elif prev_layer['type']=='fc':
+		print "INPUT FC IS ", prev_layer['outputs']
+		dic['binary_input']=(prev_layer['outputs'],)
+	else:
+		print "UNKNOWN LAYER TYPE", prev_layer['type']
         print "Initialized fully-connected layer '%s', producing %d outputs" % (name, dic['outputs'])
         return dic
 
     @staticmethod
     def to_binary(dic):
 
-      if dic['name'] == 'fc6':
-        input_shape = (6, 6, 256)
-      else:
-        input_shape = (4096, )
+
+      input_shape=dic['binary_input']
+      #if dic['name'] == 'fc6':
+      #  input_shape = (6, 6, 256)
+      #else:
+      #  input_shape = (4096, )
 
       num_output = dic['outputs']
       input_size = reduce(mul, input_shape)
