@@ -33,7 +33,14 @@
 #include <cudaconv2.cuh>
 #include <matrix.h>
 
+#include <set>
+
 using namespace std;
+
+
+#define UPD (0.6/6)
+//#define MIN(a,b) (((a)<(b))?(a):(b))
+//#define MAX(a,b) (((a)>(b))?(a):(b))
 
 /* 
  * =======================
@@ -395,12 +402,43 @@ Weights& WeightLayer::getWeights(int idx) {
 FCLayer::FCLayer(ConvNet* convNet, PyObject* paramsDict) : WeightLayer(convNet, paramsDict, true, false) {
     _wStep = 0.1;
     _bStep = 0.01;
+    _drop = pyDictGetFloat(paramsDict, "drop");//+UPD*convNet-n>getUpdate());
+    int sz = _biases->getNumRows()*_biases->getNumCols();
+    fprintf(stderr,"DROP %f %f\n",_drop,_drop*sz);
 }
 
 void FCLayer::fpropActs(int inpIdx, float scaleTargets, PASS_TYPE passType) {
     getActs().addProduct(*_inputs[inpIdx], *_weights[inpIdx], scaleTargets, 1);
 //    printf("weights=\n");
 //    (*_weights[inpIdx]).printContents();
+    //MISKO   
+    NVMatrix& w = _biases->getW();
+    Matrix tmp = Matrix(w.getNumRows(),w.getNumCols());
+    w.copyToHost(tmp);
+    int turned_on=0;
+    int flipped=0;
+    float effective_drop = MIN(1.0,MAX(0.0,_drop -UPD*_convNet->getUpdate()));
+    //fprintf(stderr,"Effective drop %f\n",effective_drop);
+    //fprintf(stderr,"DROPPED FILTERS %d\n",_dropFilters);
+    for (int i=0; i<w.getNumElements(); i++) {
+	//fprintf(stderr,"%0.1f ",tmp.getData()[i]);
+    	int sz = _biases->getNumRows()*_biases->getNumCols();
+	if (i==0 || i>=effective_drop*sz) {
+		if (tmp.getData()[i]<-900) {
+			tmp.getData()[i]+=1000;
+			flipped=1;
+		}
+	}
+	if (tmp.getData()[i]>-900) {
+		turned_on++;
+	}
+    }
+   if (flipped==1) {
+	fprintf(stderr,"UNITS TURNED ON %d\n",turned_on);
+   }
+    w.copyFromHost(tmp);
+
+
     if (scaleTargets == 0) {
         getActs().addVector(_biases->getW());
 //        printf("biases=\n");
@@ -455,6 +493,7 @@ LocalLayer::LocalLayer(ConvNet* convNet, PyObject* paramsDict, bool useGrad)
     _modulesX = pyDictGetInt(paramsDict, "modulesX");
     _modules = pyDictGetInt(paramsDict, "modules");
 
+
     // It's a vector on the heap to be consistent with all the others...
     _filterConns = new vector<FilterConns>();
     PyObject* pyFilterConns = PyDict_GetItemString(paramsDict, "filterConns");
@@ -487,6 +526,10 @@ void LocalLayer::copyToGPU() {
 ConvLayer::ConvLayer(ConvNet* convNet, PyObject* paramsDict) : LocalLayer(convNet, paramsDict, true) {
     _partialSum = pyDictGetInt(paramsDict, "partialSum");
     _sharedBiases = pyDictGetInt(paramsDict, "sharedBiases");
+    //_drop = pyDictGetFloat(paramsDict, "drop");
+    _drop = pyDictGetFloat(paramsDict, "drop");//+nUPD*convNet->getUpdate());
+    int sz = _biases->getNumRows()*_biases->getNumCols();
+    fprintf(stderr,"DROP SET %f %f\n",_drop,_drop*sz);
 }
 
 void ConvLayer::fpropActs(int inpIdx, float scaleTargets, PASS_TYPE passType) {
@@ -505,7 +548,34 @@ void ConvLayer::fpropActs(int inpIdx, float scaleTargets, PASS_TYPE passType) {
 //          _stride->at(inpIdx), _channels->at(inpIdx), _groups->at(inpIdx), scaleTargets);
 //        getActs().printShape("acts");
     }
-    
+  
+   //MISKO 
+    NVMatrix& w = _biases->getW();
+    Matrix tmp = Matrix(w.getNumRows(),w.getNumCols());
+    w.copyToHost(tmp);
+    int turned_on=0;
+    int flipped=0;
+    float effective_drop = MIN(1.0,MAX(0.0,_drop -UPD*_convNet->getUpdate()));
+    //fprintf(stderr,"Effective drop %f %d %f\n",effective_drop,_convNet->getUpdate(),UPD);
+    //fprintf(stderr,"DROPPED FILTERS %d\n",_dropFilters);
+    for (int i=0; i<w.getNumElements(); i++) {
+	//fprintf(stderr,"%0.1f ",tmp.getData()[i]);
+    	int sz = _biases->getNumRows()*_biases->getNumCols();
+	if (i==0 || i>=effective_drop*sz) {
+		if (tmp.getData()[i]<-900) {
+			tmp.getData()[i]+=1000;
+			flipped=1;
+		}
+	}
+	if (tmp.getData()[i]>-900) {
+		turned_on++;
+	}
+    }
+   if (flipped==1) {
+	fprintf(stderr,"UNITS TURNED ON %d\n",turned_on);
+   }
+    w.copyFromHost(tmp);
+ 
     if (scaleTargets == 0) {
         if (_sharedBiases) {
             getActs().reshape(_numFilters, getActs().getNumElements() / _numFilters);
@@ -1028,6 +1098,18 @@ void LogregCostLayer::fpropActs(int inpIdx, float scaleTargets, PASS_TYPE passTy
         _costv.clear();
         _costv.push_back(-trueLabelLogProbs.sum());
         _costv.push_back(numCases - correctProbs.sum());
+	//for each label get sum for just that label
+	set<int> unique_labels;
+	Matrix hostLabels(labels.getNumRows(),labels.getNumCols());;
+	labels.copyToHost(hostLabels);
+	for (int i=0; i<hostLabels.getNumElements(); i++) {
+		//fprintf(stderr,"LABEL %d\n", (int)(hostLabels.getData()[i]+0.0001));
+		unique_labels.insert((int)(hostLabels.getData()[i]+0.0001));
+	}
+	for (set<int>::iterator it=unique_labels.begin(); it!=unique_labels.end(); ++it) {
+		//fprintf(stderr,"UNIQUE LABEL %d\n",*it);  //MISKO
+	}
+	
     }
 }
 

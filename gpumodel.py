@@ -154,7 +154,9 @@ class IGPUModel:
             next_data = self.get_next_batch()
             
             batch_output = self.finish_batch()
+	    print batch_output
             self.train_outputs += [batch_output]
+	    #print len(self.train_outputs), "XXXYY" #MISKO LEN OF TRAINING , ITERATIONS
             self.print_train_results()
             self.save_filter_image()
 
@@ -193,7 +195,7 @@ class IGPUModel:
         self.libmodel.startBatch(batch_data[2], not train)
     
     def finish_batch(self):
-        return self.libmodel.finishBatch()
+        return self.libmodel.finishBatch(len(self.train_outputs))
     
     def print_iteration(self):
         print "\t%d.%d... (%d images)" % (self.epoch, self.batchnum, self.image_count),

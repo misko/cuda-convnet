@@ -63,7 +63,7 @@ class ConvNet(IGPUModel):
         self.libmodel = __import__(lib_name) 
         
     def init_model_lib(self):
-        self.libmodel.initModel(self.layers, self.minibatch_size, self.device_ids[0])
+        self.libmodel.initModel(self.layers, self.minibatch_size, self.device_ids[0], len(self.train_outputs))
         
     def init_model_state(self):
         ms = self.model_state

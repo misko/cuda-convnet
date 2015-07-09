@@ -124,7 +124,7 @@ protected:
     WeightList _weights;
     Weights *_biases;
     float _wStep, _bStep;
-    
+    float _drop; 
     void bpropCommon(NVMatrix& v, PASS_TYPE passType);
     virtual void bpropBiases(NVMatrix& v, PASS_TYPE passType) = 0;
     virtual void bpropWeights(NVMatrix& v, int inpIdx, PASS_TYPE passType) = 0;

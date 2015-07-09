@@ -63,7 +63,9 @@ protected:
     int _numFailures;
     int _numTests;
     double _baseErr;
-    
+
+    int _updateNumber;
+      
     virtual Layer* initLayer(string& layerType, PyObject* paramsDict);
     void initCuda();
     void* run();
@@ -74,6 +76,10 @@ public:
     Queue<WorkResult*>& getResultQueue();
     DataProvider& getDataProvider();
     
+
+    void setUpdate(int update);
+    int getUpdate();
+
     Layer& operator[](int idx);
     Layer& getLayer(int idx);
     void copyToCPU();

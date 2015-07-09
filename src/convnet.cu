@@ -80,6 +80,15 @@ ConvNet::ConvNet(PyListObject* layerParams, int minibatchSize, int deviceID) : T
     }
 }
 
+
+void ConvNet::setUpdate(int update) {
+	_updateNumber=update;
+}
+
+int ConvNet::getUpdate() {
+	return _updateNumber;
+}
+
 /*
  * Override this in derived classes
  */

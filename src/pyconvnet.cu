@@ -72,17 +72,18 @@ PyObject* initModel(PyObject *self, PyObject *args) {
     PyListObject* pyLayerParams;
     int pyMinibatchSize;
     int pyDeviceID;
-
-    if (!PyArg_ParseTuple(args, "O!ii",
+    int updates;
+    if (!PyArg_ParseTuple(args, "O!iii",
                           &PyList_Type, &pyLayerParams,
                           &pyMinibatchSize,
-                          &pyDeviceID)) {
+                          &pyDeviceID, &updates)) {
         return NULL;
     }
+   
     model = new ConvNet(pyLayerParams,
                         pyMinibatchSize,
                         pyDeviceID);
-
+    model->setUpdate(updates);
     model->start();
     return Py_BuildValue("i", 0);
 }
@@ -152,6 +153,14 @@ PyObject* finishBatch(PyObject *self, PyObject *args) {
     WorkResult* res = model->getResultQueue().dequeue();
     assert(res != NULL);
     assert(res->getResultType() == WorkResult::BATCH_DONE);
+
+    int update_number=-1;
+    if (!PyArg_ParseTuple(args, "i",
+        &update_number)) {
+        return NULL;
+    }
+    fprintf(stderr,"UPDATE NUMBER %d\n",update_number);
+    model->setUpdate(update_number);
     
     Cost& cost = res->getResults();
     PyObject* dict = PyDict_New();

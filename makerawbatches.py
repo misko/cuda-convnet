@@ -77,19 +77,27 @@ else:
     exit(1)
 
 found_ids = {}
-input_image_glob = image_folder + '/*.jpg'
-for index, image_path in enumerate(glob.iglob(input_image_glob)):
-  if (index + 1) % 1000 == 0:
-    sys.stderr.write('Found %d files\n' % (index + 1))
-  basename = os.path.basename(image_path)
-  try:
-    id = re.search('^n([0-9]+)_', basename).group(1)
-  except AttributeError:
-    sys.stderr.write('No wordnet ID found for %s\n' % (image_path))
-    continue
-  if not id in found_ids:
-    found_ids[id] = []
-  found_ids[id].append(basename)
+#input_image_glob = image_folder + '/*.JPEG'
+for input_image_glob in [image_folder + '/*.jpg', image_folder + '/*.JPEG']:
+  for index, image_path in enumerate(glob.iglob(input_image_glob)):
+    if (index + 1) % 1000 == 0:
+      sys.stderr.write('Found %d files\n' % (index + 1))
+    #basename = os.path.basename(os.path.dirname(image_path))
+    basename = os.path.basename(image_path)
+    #id=basename
+    try:
+      #id = re.search('^n([0-9]+)_', basename).group(1)
+      id = re.search('^([^_]+)_', basename).group(1)
+      #print id
+    except AttributeError:
+      sys.stderr.write('No woxrdnet ID found for %s\n' % (image_path))
+      continue
+    if not id in found_ids:
+      found_ids[id] = []
+    found_ids[id].append(basename)
+
+
+#print found_ids
 
 all_ids = found_ids.keys()
 
@@ -124,7 +132,8 @@ for i in xrange(0, len(wanted_files), IMAGES_PER_BATCH):
   for basename in current_images:
     image_path = image_folder + '/' + basename
     try:
-      id = re.search('^n([0-9]+)_', basename).group(1)
+      #id = re.search('^n([0-9]+)_', basename).group(1)
+      id = re.search('^([^_]+)_', basename).group(1)
     except AttributeError:
       sys.stderr.write('No wordnet ID found for %s\n' % (image_path))
       continue

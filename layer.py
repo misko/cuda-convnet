@@ -158,6 +158,8 @@ class LayerParser:
        if name in mcp.sections():
            dic['dropout'] = mcp.safe_get_float(name, 'dropout', default=0.0)
 	   print "DROPOUT IS ",dic['dropout']
+           #dic['drop'] = mcp.safe_get_float(name, 'drop', default=0.0)	
+	   #print name,dic['drop']
 
     def init(self, dic):
         self.dic = dic
@@ -665,7 +667,6 @@ class WeightLayerParser(LayerWithInputParser):
         dic['momW'] = mcp.safe_get_float_list(name, 'momW')
         dic['momB'] = mcp.safe_get_float(name, 'momB')
         dic['wc'] = mcp.safe_get_float_list(name, 'wc')
-        
         self.verify_num_params(['epsW', 'momW', 'wc'])
         
         dic['gradConsumer'] = dic['epsB'] > 0 or any(w > 0 for w in dic['epsW'])
@@ -803,11 +804,19 @@ class FCLayerParser(WeightLayerParser):
         
         dic['usesActs'] = False
         dic['outputs'] = mcp.safe_get_int(name, 'outputs')
+	dic['drop'] = mcp.safe_get_float(name, 'drop', default=0.0)
+	if dic['drop']<0 or dic['drop']>1.0:
+	    raise LayerParsingError("Layer '%s': dropping to many fitlers!" % name)
 
         self.verify_num_range(dic['outputs'], 'outputs', 1, None)
         self.make_weights(dic['initW'], dic['numInputs'], [dic['outputs']] * len(dic['numInputs']), order='F')
         self.make_biases(1, dic['outputs'], order='F')
 	
+	#knock out all but n filters #Misko
+	print >> sys.stderr, "Knocking out ",int(ceil(dic['drop']*len(dic['biases'][0]))),dic['drop'],len(dic['biases'][0])
+	for x in range(int(ceil(dic['drop']*len(dic['biases'][0])))):
+        	dic['biases'][0][x]-=1000
+
 	prev_layer=prev_layers[-1]
 	if prev_layer['type']=='pool':
 		print "INPUT IS",prev_layer['outputsX'],prev_layer['outputsX'],prev_layer['channels']	
@@ -949,6 +958,9 @@ class LocalLayerParser(WeightLayerParser):
         dic['randSparse'] = mcp.safe_get_bool_list(name, 'randSparse', default=[False]*len(dic['inputs']))
         dic['initW'] = mcp.safe_get_float_list(name, 'initW')
         dic['initCFunc'] = mcp.safe_get(name, 'initCFunc', default='')
+	dic['drop'] = mcp.safe_get_float(name, 'drop', default=0.0)
+	if dic['drop']<0 or dic['drop']>1.0:
+	    raise LayerParsingError("Layer '%s': dropping to many fitlers!" % name)
         
         self.verify_num_params(['channels', 'padding', 'stride', 'filterSize', \
                                                      'filters', 'groups', 'randSparse', 'initW'])
@@ -1016,7 +1028,6 @@ class ConvLayerParser(LocalLayerParser):
         
         dic['partialSum'] = mcp.safe_get_int(name, 'partialSum')
         dic['sharedBiases'] = mcp.safe_get_bool(name, 'sharedBiases', default=True)
-
         if dic['partialSum'] != 0 and dic['modules'] % dic['partialSum'] != 0:
             raise LayerParsingError("Layer '%s': convolutional layer produces %dx%d=%d outputs per filter, but given partialSum parameter (%d) does not divide this number" % (name, dic['modulesX'], dic['modulesX'], dic['modules'], dic['partialSum']))
 
@@ -1025,6 +1036,10 @@ class ConvLayerParser(LocalLayerParser):
         eltmult = lambda list1, list2: [l1 * l2 for l1,l2 in zip(list1, list2)]
         self.make_weights(dic['initW'], eltmult(dic['filterPixels'], dic['filterChannels']), [dic['filters']] * len(dic['inputs']), order='C')
         self.make_biases(num_biases, 1, order='C')
+	#knock out all but n filters #Misko
+	print >> sys.stderr, "Knocking out ",dic['drop']*dic['filters'],"fitlers" 
+	for x in range(int(ceil(dic['drop']*dic['filters']))):
+        	dic['biases'][x]-=1000
 
         print "Initialized convolutional layer '%s', producing %dx%d %d-channel output" % (name, dic['modulesX'], dic['modulesX'], dic['filters'])
         return dic    
