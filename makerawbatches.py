@@ -77,24 +77,26 @@ else:
     exit(1)
 
 found_ids = {}
+
 #input_image_glob = image_folder + '/*.JPEG'
-for input_image_glob in [image_folder + '/*.jpg', image_folder + '/*.JPEG']:
+for input_image_glob in [image_folder + '/*/*.jpg', image_folder + '/*/*.JPEG']:
   for index, image_path in enumerate(glob.iglob(input_image_glob)):
     if (index + 1) % 1000 == 0:
       sys.stderr.write('Found %d files\n' % (index + 1))
     #basename = os.path.basename(os.path.dirname(image_path))
-    basename = os.path.basename(image_path)
+    #basename  = os.path.basename(image_path)
     #id=basename
     try:
       #id = re.search('^n([0-9]+)_', basename).group(1)
-      id = re.search('^([^_]+)_', basename).group(1)
+      id = os.path.basename(os.path.dirname(image_path))
+      #id = re.search('^([^_]+)_', basename).group(1)
       #print id
     except AttributeError:
       sys.stderr.write('No woxrdnet ID found for %s\n' % (image_path))
       continue
     if not id in found_ids:
       found_ids[id] = []
-    found_ids[id].append(basename)
+    found_ids[id].append(image_path)
 
 
 #print found_ids
@@ -122,35 +124,38 @@ shuffle(wanted_files)
 
 sys.stderr.write('Starting to process %d files\n' % (len(wanted_files)))
 
-total_image = np.zeros((image_size * image_size * 3), dtype=np.float64)
 
-images_processed = 0
-for i in xrange(0, len(wanted_files), IMAGES_PER_BATCH):
-  current_images = wanted_files[i:(i + IMAGES_PER_BATCH)]
+
+
+def process_batch(z):
+  ii,current_images=z
+  images_processed_t=0
+  total_image_t = np.zeros((image_size * image_size * 3), dtype=np.float64)
   labels = []
   images = []
-  for basename in current_images:
-    image_path = image_folder + '/' + basename
+  for image_path in current_images:
+    #image_path = image_folder + '/' + basename
     try:
       #id = re.search('^n([0-9]+)_', basename).group(1)
-      id = re.search('^([^_]+)_', basename).group(1)
+      id = os.path.basename(os.path.dirname(image_path))
+      #id = re.search('^([^_]+)_', basename).group(1)
     except AttributeError:
       sys.stderr.write('No wordnet ID found for %s\n' % (image_path))
       continue
     try:
       image = misc.imread(image_path)
     except IOError, e:
-      log("IOError for '%s' - %s" % (basename, e))
+      log("IOError for '%s' - %s" % (image_path, e))
       continue
     shape = image.shape
     if len(shape) < 3:
-      log("Missing channels for '%s', skipping" % (basename))
+      log("Missing channels for '%s', skipping" % (image_path))
       continue
     width = shape[1]
     height = shape[0]
     channels = shape[2]
     if channels < 3:
-      log("Too few channels for '%s', skipping" % (basename))
+      log("Too few channels for '%s', skipping" % (image_path))
       continue
     if width == image_size and height == image_size:
       resized = image
@@ -164,7 +169,7 @@ for i in xrange(0, len(wanted_files), IMAGES_PER_BATCH):
       try:
         resized = misc.imresize(image, (image_size, image_size))
       except ValueError, e:
-        log("ValueError when resizing '%s' - %s" % (basename, e))
+        log("ValueError when resizing '%s' - %s" % (image_path, e))
         continue
     red_channel = resized[:, :, 0]
     red_channel.shape = (image_size * image_size)
@@ -173,14 +178,14 @@ for i in xrange(0, len(wanted_files), IMAGES_PER_BATCH):
     blue_channel = resized[:, :, 2]
     blue_channel.shape = (image_size * image_size)
     all_channels = np.append(np.append(red_channel, green_channel), blue_channel)
-    total_image += all_channels
+    total_image_t += all_channels
     images.append(all_channels)
     label_index = label_indexes[id]
     labels.append(label_index)
-    images_processed += 1
-    log_count('Loaded', 100)
+    images_processed_t += 1
+    #log_count('Loaded', 100)
 
-  output_index = (i / IMAGES_PER_BATCH)
+  output_index = (ii / IMAGES_PER_BATCH)
   output_path= '%s/data_batch_%d' % (output_folder, output_index)
   output_file = open(output_path, 'wb')
   if output_format == 'raw':
@@ -194,6 +199,91 @@ for i in xrange(0, len(wanted_files), IMAGES_PER_BATCH):
     pickle.dump(output_dict, output_file)
   output_file.close()
   sys.stderr.write('Wrote %s\n' % (output_path))
+  return (total_image_t,images_processed_t)
+
+images_processed = 0
+total_image = np.zeros((image_size * image_size * 3), dtype=np.float64)
+
+to_process=[]
+for i in xrange(0, len(wanted_files), IMAGES_PER_BATCH):
+  to_process.append((i,wanted_files[i:(i + IMAGES_PER_BATCH)]))
+
+from multiprocessing import Pool
+p = Pool(8)
+r=p.map(process_batch,to_process)
+for (t,i) in r:
+  total_image+=t
+  images_processed+=i
+
+#for i in xrange(0, len(wanted_files), IMAGES_PER_BATCH):
+#  current_images = wanted_files[i:(i + IMAGES_PER_BATCH)]
+#  labels = []
+#  images = []
+#  for basename in current_images:
+#    image_path = image_folder + '/' + basename
+#    try:
+#      #id = re.search('^n([0-9]+)_', basename).group(1)
+#      id = re.search('^([^_]+)_', basename).group(1)
+#    except AttributeError:
+#      sys.stderr.write('No wordnet ID found for %s\n' % (image_path))
+#      continue
+#    try:
+#      image = misc.imread(image_path)
+#    except IOError, e:
+#      log("IOError for '%s' - %s" % (basename, e))
+#      continue
+#    shape = image.shape
+#    if len(shape) < 3:
+#      log("Missing channels for '%s', skipping" % (basename))
+#      continue
+#    width = shape[1]
+#    height = shape[0]
+#    channels = shape[2]
+#    if channels < 3:
+#      log("Too few channels for '%s', skipping" % (basename))
+#      continue
+#    if width == image_size and height == image_size:
+#      resized = image
+#    else:
+#      if width > height:
+#        margin = ((width - height) / 2)
+#        image = image[:, margin:-margin]
+#      if height > width:
+#        margin = ((height - width) / 2)
+#        image = image[margin:-margin, :]
+#      try:
+#        resized = misc.imresize(image, (image_size, image_size))
+#      except ValueError, e:
+#        log("ValueError when resizing '%s' - %s" % (basename, e))
+#        continue
+#    red_channel = resized[:, :, 0]
+#    red_channel.shape = (image_size * image_size)
+#    green_channel = resized[:, :, 1]
+#    green_channel.shape = (image_size * image_size)
+#    blue_channel = resized[:, :, 2]
+#    blue_channel.shape = (image_size * image_size)
+#    all_channels = np.append(np.append(red_channel, green_channel), blue_channel)
+#    total_image += all_channels
+#    images.append(all_channels)
+#    label_index = label_indexes[id]
+#    labels.append(label_index)
+#    images_processed += 1
+#    log_count('Loaded', 100)
+#
+#  output_index = (i / IMAGES_PER_BATCH)
+#  output_path= '%s/data_batch_%d' % (output_folder, output_index)
+#  output_file = open(output_path, 'wb')
+#  if output_format == 'raw':
+#    images_data = np.vstack(images).transpose()
+#    labels_data = np.vstack(labels).astype(np.float32)
+#    output_file.write(labels_data.tostring())
+#    output_file.write(images_data.tostring())
+#  elif output_format == 'cifar':
+#    images_data = np.vstack(images).transpose()
+#    output_dict = { 'data': images_data, 'labels': labels}
+#    pickle.dump(output_dict, output_file)
+#  output_file.close()
+#  sys.stderr.write('Wrote %s\n' % (output_path))
 
 mean_image = total_image / images_processed
 label_name_for_id = {}
