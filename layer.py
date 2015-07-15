@@ -1199,7 +1199,8 @@ class PoolLayerParser(LayerWithInputParser):
         self.verify_img_size()
 
         if dic['outputsX'] <= 0:
-            dic['outputsX'] = int(ceil((dic['imgSize'] - dic['start'] - dic['sizeX']) / float(dic['stride']))) + 1;
+            #dic['outputsX'] = int(ceil((dic['imgSize'] - dic['start'] - dic['sizeX']) / float(dic['stride']))) + 1;
+            dic['outputsX'] = int(floor((dic['imgSize'] - dic['start'] - dic['sizeX']) / float(dic['stride']))) + 1; # MISKO - fix for compatability with deepbelief sdk
         dic['outputs'] = dic['outputsX']**2 * dic['channels']
         
         print "Initialized %s-pooling layer '%s', producing %dx%d %d-channel output" % (dic['pool'], name, dic['outputsX'], dic['outputsX'], dic['channels'])
