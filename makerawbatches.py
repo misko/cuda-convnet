@@ -120,6 +120,7 @@ for index, id in enumerate(wanted_ids):
   wanted_files += found_ids[id]
   label_indexes[id] = index
 
+
 shuffle(wanted_files)
 
 sys.stderr.write('Starting to process %d files\n' % (len(wanted_files)))
@@ -204,6 +205,8 @@ def process_batch(z):
 images_processed = 0
 total_image = np.zeros((image_size * image_size * 3), dtype=np.float64)
 
+
+
 to_process=[]
 for i in xrange(0, len(wanted_files), IMAGES_PER_BATCH):
   to_process.append((i,wanted_files[i:(i + IMAGES_PER_BATCH)]))
@@ -286,23 +289,24 @@ for (t,i) in r:
 #  sys.stderr.write('Wrote %s\n' % (output_path))
 
 mean_image = total_image / images_processed
-label_name_for_id = {}
-# First, set up some default label names
-for id in wanted_ids:
-  label_name_for_id[id] = 'n' + str(id)
-# Then, try to load them from the wordnet list
-wordnet_lines = open('wordnetlabels.txt').readlines()
-for line in wordnet_lines:
-  full_id, names = line.strip().split('\t')
-  try:
-    id = re.search('^n([0-9]+)', full_id).group(1)
-  except AttributeError:
-    sys.stderr.write('No wordnet ID found for %s\n' % (line.strip()))
-    continue
-  label_name_for_id[id] = names.split(',')[0].strip()
-label_names = []
-for id in wanted_ids:
-  label_names.append(label_name_for_id[id])
+#label_name_for_id = {}
+## First, set up some default label names
+#for id in wanted_ids:
+#  label_name_for_id[id] = 'n' + str(id)
+## Then, try to load them from the wordnet list
+#wordnet_lines = open('wordnetlabels.txt').readlines()
+#for line in wordnet_lines:
+#  full_id, names = line.strip().split('\t')
+#  try:
+#    id = re.search('^n([0-9]+)', full_id).group(1)
+#  except AttributeError:
+#    sys.stderr.write('No wordnet ID found for %s\n' % (line.strip()))
+#    continue
+#  label_name_for_id[id] = names.split(',')[0].strip()
+#label_names = []
+#for id in wanted_ids:
+#  label_names.append(label_name_for_id[id])
+label_names=wanted_ids
 
 meta = {'data_mean': mean_image, 'label_names': label_names}
 meta_output_path= '%s/batches.meta' % (output_folder)
