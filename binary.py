@@ -4,13 +4,13 @@ import sys
 
 def to_string(input):
   output = bytearray()
-  output.extend('CHAR')
+  output.extend('CHAR') # add to end of binary string
   minimum_length = (len(input) + 1)
-  padded_length = (((minimum_length + 3) / 4) * 4)
-  terminator_count = (padded_length - len(input))
-  output.extend(struct.pack('I', padded_length))
-  output.extend(input)
-  for i in range(terminator_count):
+  padded_length = (((minimum_length + 3) / 4) * 4) #32bit words?
+  terminator_count = (padded_length - len(input)) #how many blanks need to go to wrap to 32bit
+  output.extend(struct.pack('I', padded_length)) #straight up write the number of bytes to follow
+  output.extend(input) #write the input to output
+  for i in range(terminator_count): #pad the output to 32bit word length
     output.extend(struct.pack('B', 0))
   return output
 
@@ -45,7 +45,7 @@ def to_dict(input):
 def to_float32_array(input):
   output = bytearray()
   output.extend('FARY')
-  value_data = array.array('f', input.flatten()).tostring()
+  value_data = array.array('f', input.flatten()).tostring() #flattens to 1d array, converts to float (32bit)
   output.extend(struct.pack('I', len(value_data)))
   output.extend(value_data)
   return output
