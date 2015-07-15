@@ -1,0 +1,1 @@
+python convnet.py --mini 128 --train-range 0-470 --test-range 471-501 --save-path /data2/convnet_save --data-path /data2/batches/ --layer-def ./example-layers/dn11/cuda_layer_mod.cfg --layer-params ./example-layers/dn11/x_wwc4.cfg --data-provider raw-cropped --image-size 256 --crop-border 16 -f /data2/convnet_save/ConvNet__2015-06-08_14.36.52/ --binary-save 1
