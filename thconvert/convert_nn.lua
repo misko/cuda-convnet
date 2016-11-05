@@ -3,12 +3,18 @@ require 'cutorch'
 
 cmd = torch.CmdLine()
 cmd:option('-model','','input model')
+cmd:option('-classes','','classes t7')
 cmd:option('-modelOut','','output model')
 
 params = cmd:parse(arg)
 
 if params.model=='' then
 	print("No model specified!")
+	os.exit(1)
+end
+
+if params.classes=='' then
+	print("no clases t7 specificed")
 	os.exit(1)
 end
 
@@ -29,6 +35,8 @@ function convert(main_module)
 					c.weight[i]:mul(mdivv)
 					c.bias[i]=(c.bias[i]-module.running_mean[i])*mdivv+module.bias[i]
 				end
+			elseif ty=='nn.ReLU' then
+				new_main_module:add(nn.ReLU(false))			
 			elseif ty=='nn.Dropout' then
 				--v2 dropout doesnt need us to do anythign!
 			else
@@ -40,19 +48,57 @@ function convert(main_module)
 	return main_module
 end
 
+function flatten_model(model,new_model)
+	--check if all are sequential
+	if new_model==nil then
+		new_model=nn.Sequential()
+	end
+	for i=1,#model.modules do
+		local module = model.modules[i]
+		local ty = torch.typename(module)
+		if torch.typename(module)=='nn.Sequential' then
+			flatten_model(module,new_model)
+		else
+			new_model:add(module)
+		end
+	end
+	return new_model
+end
+
 torch.manualSeed(0)
-local d = torch.rand(3,224,224)
+--local d = torch.rand(3,224,224):fill(0.1)
+require 'image'
+--local d = image.crop(image.scale(image.lena(),256,256),"c",224,224)
+local d = image.crop(image.load('test.jpg',3,'double'),"c",224,224)*255
+--print(d)
+print("IMAGE SUM",d:sum())
 local model = torch.load(params.model):double()
+local classes = torch.load(params.classes)
 
 model:evaluate()
 
-local new_model = convert(model:clone())
+local new_model = flatten_model(convert(model:clone()))
+new_model.classes = classes
+print("CLASSES",new_model.clases)
 
 print(model:forward(d))
 print(new_model:forward(d))
 
-print(new_model)
+print("IN VALUE",d:sum())
+for i=1,#new_model.modules do
+	local m = new_model.modules[i]
+	if torch.typename(m)=='nn.SpatialConvolution' then
+		--print(m.output:size(),m.bias:sum(),m.output:sum())
+		print(m.output:sum())
+	else
+		print(torch.typename(m),m.output:sum())
+		if (m.output:nElement()<10) then
+			print(m.output)
+		end
+	end
+end
 
+new_model:float()
 if params.modelOut~='' then
 	torch.save(params.modelOut,new_model)
 end
