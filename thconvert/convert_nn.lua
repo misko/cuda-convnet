@@ -69,20 +69,22 @@ torch.manualSeed(0)
 --local d = torch.rand(3,224,224):fill(0.1)
 require 'image'
 --local d = image.crop(image.scale(image.lena(),256,256),"c",224,224)
-local d = image.crop(image.load('test.jpg',3,'double'),"c",224,224)*255
+--local d = image.crop(image.load('test.jpg',3,'double'),"c",224,224)*255
+local d = image.crop(image.scale(image.load('/home/ubuntu/out14.png',3,'double'),256,256),"c",224,224) --*255
 --print(d)
 --print("IMAGE SUM",d:sum())
 local model = torch.load(params.model):double()
 local classes = torch.load(params.classes)
 
 model:evaluate()
-
 local new_model = flatten_model(convert(model:clone()))
 new_model.classes = classes
 --print("CLASSES",new_model.clases)
 
 print(model:forward(d))
 print(new_model:forward(d))
+print(new_model)
+print(torch.exp(new_model:forward(d)))
 
 --print("IN VALUE",d:sum())
 local debug=false
