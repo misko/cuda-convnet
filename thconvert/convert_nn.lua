@@ -28,7 +28,7 @@ function convert(main_module)
 			if torch.typename(module)=='nn.Sequential' then
 				new_main_module:add(convert(module))
 			elseif ty=='nn.SpatialBatchNormalization' or ty=='nn.BatchNormalization' then
-				local c = main_module.modules[i-1]
+				local c = new_main_module.modules[i-1]
 				for i=1,c.weight:size()[1] do
 					local mdivv = module.weight[i]/torch.sqrt(module.running_var[i]+module.eps)
 					--scale both
